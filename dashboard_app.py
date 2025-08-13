@@ -42,7 +42,7 @@ st.markdown("""
         margin: 0.5rem 0;
     }
     .insight-box {
-        background: #f0f2f6;
+        background: #0a0a0a;
         padding: 1rem;
         border-left: 4px solid #FF6B35;
         margin: 1rem 0;
