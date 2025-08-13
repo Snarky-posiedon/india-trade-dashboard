@@ -65,7 +65,7 @@ def load_data_from_db(db_path='india_trade.db'):
         conn = sqlite3.connect(db_path)
         
         
-        query = "SELECT * FROM trade_data LIMIT 100000"  
+        query = "SELECT * FROM trade_data LIMIT 300000"  
         df = pd.read_sql_query(query, conn)
         
         conn.close()
