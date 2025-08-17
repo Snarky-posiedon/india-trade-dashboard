@@ -142,129 +142,60 @@ def create_overview_metrics(df):
         </div>
         """, unsafe_allow_html=True)
 
-def create_trade_balance_by_sector(df):
-    """Create trade balance analysis by sector showing both deficit and surplus"""
+def create_trade_balance_chart(df):
+    """Create interactive trade balance chart"""
     
-    # Calculate trade balance by sector
-    sector_trade = df.groupby(['hs_section', 'trade_type'])['value_usd'].sum().reset_index()
-    sector_pivot = sector_trade.pivot(index='hs_section', columns='trade_type', values='value_usd').fillna(0)
     
-    if 'Import' in sector_pivot.columns and 'Export' in sector_pivot.columns:
-        sector_pivot['Trade_Balance'] = sector_pivot['Export'] - sector_pivot['Import']
-        
-        # Sort by trade balance to show both extremes
-        sector_pivot = sector_pivot.sort_values('Trade_Balance', ascending=True)
-        
-        # Get top 5 deficit and top 5 surplus sectors
-        deficit_sectors = sector_pivot.head(5)  # Most negative (deficit)
-        surplus_sectors = sector_pivot.tail(5)  # Most positive (surplus)
-        
-        # Combine for visualization
-        combined_sectors = pd.concat([deficit_sectors, surplus_sectors]).drop_duplicates()
-        
-        # Create the chart
-        fig = go.Figure()
-        
-        # Color coding: red for deficit, green for surplus
-        colors = ['#ff4444' if x < 0 else '#44ff44' for x in combined_sectors['Trade_Balance']]
-        
-        fig.add_trace(go.Bar(
-            y=combined_sectors.index,
-            x=combined_sectors['Trade_Balance'],
-            orientation='h',
-            marker_color=colors,
-            name='Trade Balance',
-            text=[f'${x:,.0f}' for x in combined_sectors['Trade_Balance']],
-            textposition='outside'
+    yearly_trade = df.groupby(['year', 'trade_type'])['value_usd'].sum().reset_index()
+    yearly_pivot = yearly_trade.pivot(index='year', columns='trade_type', values='value_usd').fillna(0)
+    
+    
+    if 'Import' in yearly_pivot.columns and 'Export' in yearly_pivot.columns:
+        yearly_pivot['Trade_Balance'] = yearly_pivot['Export'] - yearly_pivot['Import']
+    
+    
+    fig = go.Figure()
+    
+    if 'Import' in yearly_pivot.columns:
+        fig.add_trace(go.Scatter(
+            x=yearly_pivot.index,
+            y=yearly_pivot['Import'],
+            mode='lines+markers',
+            name='Imports',
+            line=dict(color='red', width=3),
+            marker=dict(size=8)
         ))
-        
-        # Add a vertical line at x=0 to separate deficit from surplus
-        fig.add_vline(x=0, line_dash="dash", line_color="black", line_width=2)
-        
-        fig.update_layout(
-            title="Trade Balance by Commodity Sector (Top 5 Deficit & Top 5 Surplus)",
-            xaxis_title="Trade Balance (USD)",
-            yaxis_title="Commodity Sector",
-            height=600,
-            showlegend=False
-        )
-        
-        # Add annotations for deficit and surplus sides
-        fig.add_annotation(
-            x=combined_sectors['Trade_Balance'].min() * 0.5,
-            y=len(combined_sectors) * 0.9,
-            text="DEFICIT<br>(Imports > Exports)",
-            showarrow=False,
-            font=dict(size=12, color="red"),
-            bgcolor="rgba(255,255,255,0.8)",
-            bordercolor="red",
-            borderwidth=1
-        )
-        
-        fig.add_annotation(
-            x=combined_sectors['Trade_Balance'].max() * 0.5,
-            y=len(combined_sectors) * 0.9,
-            text="SURPLUS<br>(Exports > Imports)",
-            showarrow=False,
-            font=dict(size=12, color="green"),
-            bgcolor="rgba(255,255,255,0.8)",
-            bordercolor="green",
-            borderwidth=1
-        )
-        
-        return fig, combined_sectors
     
-    return None, None
-
-def create_detailed_balance_table(df):
-    """Create a detailed table showing all sectors with trade balance"""
+    if 'Export' in yearly_pivot.columns:
+        fig.add_trace(go.Scatter(
+            x=yearly_pivot.index,
+            y=yearly_pivot['Export'],
+            mode='lines+markers',
+            name='Exports',
+            line=dict(color='green', width=3),
+            marker=dict(size=8)
+        ))
     
-    sector_trade = df.groupby(['hs_section', 'trade_type'])['value_usd'].sum().reset_index()
-    sector_pivot = sector_trade.pivot(index='hs_section', columns='trade_type', values='value_usd').fillna(0)
+    if 'Trade_Balance' in yearly_pivot.columns:
+        fig.add_trace(go.Scatter(
+            x=yearly_pivot.index,
+            y=yearly_pivot['Trade_Balance'],
+            mode='lines+markers',
+            name='Trade Balance',
+            line=dict(color='blue', width=2, dash='dash'),
+            marker=dict(size=6)
+        ))
     
-    if 'Import' in sector_pivot.columns and 'Export' in sector_pivot.columns:
-        sector_pivot['Trade_Balance'] = sector_pivot['Export'] - sector_pivot['Import']
-        sector_pivot['Status'] = sector_pivot['Trade_Balance'].apply(
-            lambda x: 'SURPLUS' if x > 0 else 'DEFICIT' if x < 0 else 'BALANCED'
-        )
-        
-        # Format currency columns
-        for col in ['Import', 'Export', 'Trade_Balance']:
-            if col in sector_pivot.columns:
-                sector_pivot[f'{col}_Formatted'] = sector_pivot[col].apply(lambda x: f'${x:,.0f}')
-        
-        # Sort by trade balance
-        sector_pivot = sector_pivot.sort_values('Trade_Balance', ascending=True)
-        
-        return sector_pivot
+    fig.update_layout(
+        title="India Trade Balance Over Time",
+        xaxis_title="Year",
+        yaxis_title="Value (USD)",
+        hovermode='x unified',
+        height=500,
+        showlegend=True
+    )
     
-    return None
-
-# Additional function to show deficit/surplus summary
-def create_deficit_surplus_summary(df):
-    """Create summary metrics for deficit and surplus sectors"""
-    
-    sector_trade = df.groupby(['hs_section', 'trade_type'])['value_usd'].sum().reset_index()
-    sector_pivot = sector_trade.pivot(index='hs_section', columns='trade_type', values='value_usd').fillna(0)
-    
-    if 'Import' in sector_pivot.columns and 'Export' in sector_pivot.columns:
-        sector_pivot['Trade_Balance'] = sector_pivot['Export'] - sector_pivot['Import']
-        
-        deficit_sectors = sector_pivot[sector_pivot['Trade_Balance'] < 0]
-        surplus_sectors = sector_pivot[sector_pivot['Trade_Balance'] > 0]
-        
-        summary = {
-            'deficit_count': len(deficit_sectors),
-            'surplus_count': len(surplus_sectors),
-            'total_deficit': deficit_sectors['Trade_Balance'].sum(),
-            'total_surplus': surplus_sectors['Trade_Balance'].sum(),
-            'worst_deficit_sector': deficit_sectors['Trade_Balance'].idxmin() if not deficit_sectors.empty else 'None',
-            'best_surplus_sector': surplus_sectors['Trade_Balance'].idxmax() if not surplus_sectors.empty else 'None'
-        }
-        
-        return summary
-    
-    return None
+    return fig
 
 def create_trading_partners_chart(df):
     """Create top trading partners visualization"""
